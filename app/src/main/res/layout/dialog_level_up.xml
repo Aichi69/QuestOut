@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="8dp"
+    android:background="@drawable/bg_gradient">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <!-- Level Up Icon -->
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_achievement"
+            android:tint="#8F6ED5"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Level Up Text -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LEVEL UP!"
+            android:textColor="#8F6ED5"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/montserrat_bold"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- New Level Text -->
+        <TextView
+            android:id="@+id/newLevelText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="You are now level 25"
+            android:textColor="#666666"
+            android:textSize="18sp"
+            android:fontFamily="@font/montserrat_regular"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Continue Button -->
+        <Button
+            android:id="@+id/continueBtn"
+            android:layout_width="180dp"
+            android:layout_height="48dp"
+            android:text="CONTINUE"
+            android:textColor="#FFF"
+            android:textStyle="bold"
+            android:fontFamily="@font/montserrat_bold"
+            android:backgroundTint="#8F6ED5"
+            android:textSize="16sp"/>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView> 

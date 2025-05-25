@@ -1,0 +1,39 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/rounded_dialog_background"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Daily Login Claimed!"
+        android:textColor="#8F6ED5"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_gravity="center"/>
+
+    <TextView
+        android:id="@+id/dialogMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="+10 XP!"
+        android:textColor="#FF5E9C"
+        android:textSize="18sp"
+        android:layout_marginTop="12dp"
+        android:layout_gravity="center"/>
+
+    <Button
+        android:id="@+id/dialogOkBtn"
+        android:layout_width="120dp"
+        android:layout_height="40dp"
+        android:text="OK"
+        android:textColor="#FFF"
+        android:backgroundTint="#8F6ED5"
+        android:textStyle="bold"
+        android:layout_marginTop="20dp"
+        android:layout_gravity="center"/>
+</LinearLayout>
