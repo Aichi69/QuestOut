@@ -26,12 +26,16 @@ public class DBHelper extends SQLiteOpenHelper {
             "birthday TEXT," +
             "level INTEGER DEFAULT 0," +
             "streak INTEGER DEFAULT 0," +
+            "questStreak INTEGER DEFAULT 0," +
             "steps INTEGER DEFAULT 0," +
+            "stepsToday INTEGER DEFAULT 0," +
+            "stepGoal INTEGER DEFAULT 5000," +
             "total_xp INTEGER DEFAULT 0," +
             "total_quests INTEGER DEFAULT 0," +
             "total_tasks INTEGER DEFAULT 0," +
             "highest_streak INTEGER DEFAULT 0," +
-            "step_goal INTEGER DEFAULT 0," +
+            "lastLoginDate INTEGER DEFAULT 0," +
+            "isQuestActive INTEGER DEFAULT 0," +
             "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
         ")");
     }
@@ -66,7 +70,7 @@ public class DBHelper extends SQLiteOpenHelper {
         values.put("total_quests", 0);
         values.put("total_tasks", 0);
         values.put("highest_streak", 0);
-        values.put("step_goal", 0);
+        values.put("stepGoal", 0);
         long result = db.insert("users", null, values);
         Log.d(TAG, "Inserting new user: " + name + " with level 0. Result: " + (result != -1));
         return result != -1;
@@ -145,13 +149,14 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     // Update user stats
-    public void updateUserStats(int userId, int level, int streak, int steps) {
+    public void updateUserStats(int userId, int level, int xp, int steps) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put("level", level);
-        values.put("streak", streak);
+        values.put("total_xp", xp);
         values.put("steps", steps);
-        db.update("users", values, "id=?", new String[]{String.valueOf(userId)});
+        db.update("users", values, "id = ?", new String[]{String.valueOf(userId)});
+        Log.d(TAG, String.format("Updated user stats - Level: %d, XP: %d, Steps: %d", level, xp, steps));
     }
 
     // Update user steps
@@ -176,19 +181,17 @@ public class DBHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put("streak", streak);
-        if (streak > getHighestStreak(userId)) {
-            values.put("highest_streak", streak);
-        }
-        int result = db.update("users", values, "id=?", new String[]{String.valueOf(userId)});
-        Log.d(TAG, "Updated streak for user " + userId + " to " + streak + ". Result: " + result);
-        
-        // Verify the update
-        Cursor cursor = db.rawQuery("SELECT streak FROM users WHERE id=?", new String[]{String.valueOf(userId)});
-        if (cursor != null && cursor.moveToFirst()) {
-            int updatedStreak = cursor.getInt(0);
-            Log.d(TAG, "Verified streak update - Current value: " + updatedStreak);
-            cursor.close();
-        }
+        db.update("users", values, "id = ?", new String[]{String.valueOf(userId)});
+        Log.d(TAG, "Updated streak to " + streak + " for user " + userId);
+    }
+
+    // Update quest streak
+    public void updateQuestStreak(int userId, int questStreak) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("questStreak", questStreak);
+        db.update("users", values, "id = ?", new String[]{String.valueOf(userId)});
+        Log.d(TAG, "Updated quest streak to " + questStreak + " for user " + userId);
     }
 
     // Update total XP
@@ -251,7 +254,7 @@ public class DBHelper extends SQLiteOpenHelper {
         values.put("total_quests", 0);
         values.put("total_tasks", 0);
         values.put("highest_streak", 0);
-        values.put("step_goal", 0);
+        values.put("stepGoal", 0);
         db.update("users", values, "id=?", new String[]{String.valueOf(userId)});
     }
 
@@ -348,12 +351,12 @@ public class DBHelper extends SQLiteOpenHelper {
     public void updateStepGoal(int userId, int goal) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put("step_goal", goal);
+        values.put("stepGoal", goal);
         int result = db.update("users", values, "id=?", new String[]{String.valueOf(userId)});
         Log.d(TAG, "Updated step goal for user " + userId + " to " + goal + ". Result: " + result);
         
         // Verify the update
-        Cursor cursor = db.rawQuery("SELECT step_goal FROM users WHERE id=?", new String[]{String.valueOf(userId)});
+        Cursor cursor = db.rawQuery("SELECT stepGoal FROM users WHERE id=?", new String[]{String.valueOf(userId)});
         if (cursor != null && cursor.moveToFirst()) {
             int updatedGoal = cursor.getInt(0);
             Log.d(TAG, "Verified step goal update - Current value: " + updatedGoal);
@@ -364,7 +367,7 @@ public class DBHelper extends SQLiteOpenHelper {
     // Get step goal
     public int getStepGoal(int userId) {
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT step_goal FROM users WHERE id = ?", 
+        Cursor cursor = db.rawQuery("SELECT stepGoal FROM users WHERE id = ?", 
             new String[]{String.valueOf(userId)});
         int goal = 0;
         if (cursor != null && cursor.moveToFirst()) {

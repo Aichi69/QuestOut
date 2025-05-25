@@ -158,7 +158,7 @@ public class DailyQuestActivity extends AppCompatActivity {
 
                 okButton.setOnClickListener(v -> {
                     dialog.dismiss();
-                    startQuestWithRewards(); // Start quest with rewards
+                    finish(); // Just go back to home
                 });
                 reattemptButton.setOnClickListener(v -> {
                     dialog.dismiss();
@@ -277,7 +277,6 @@ public class DailyQuestActivity extends AppCompatActivity {
                 }
                 exerciseAdapter.notifyDataSetChanged();
                 
-                // Always proceed to completion screen after the last task
                 if (allowRewards) {
                     // Calculate XP: 10 XP per completed task
                     int completedCount = 0;
@@ -285,6 +284,9 @@ public class DailyQuestActivity extends AppCompatActivity {
                         if (task.isCompleted) completedCount++;
                     }
                     int totalXP = completedCount * 10;
+
+                    // Save last quest date
+                    prefs.edit().putLong("lastQuestDate", System.currentTimeMillis()).apply();
 
                     // Start QuestCompleteActivity
                     Intent intent = new Intent(DailyQuestActivity.this, QuestCompleteActivity.class);
@@ -296,6 +298,7 @@ public class DailyQuestActivity extends AppCompatActivity {
                     Toast.makeText(this, "Practice quest completed! No rewards given.", Toast.LENGTH_LONG).show();
                     isQuestActive = false;
                     startButton.setText("START");
+                    finish(); // Return to home
                 }
             }
         } else {

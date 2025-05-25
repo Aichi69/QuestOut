@@ -52,16 +52,16 @@ public class LoginActivity extends AppCompatActivity {
             String userEmail = cursor.getString(cursor.getColumnIndex("email"));
 
             // Load all progress for this specific user
-            int xp = getIntFromCursor(cursor, "xp", 0);
+            int xp = getIntFromCursor(cursor, "total_xp", 0);
             int level = getIntFromCursor(cursor, "level", 0);
             int streak = getIntFromCursor(cursor, "streak", 0);
             int questStreak = getIntFromCursor(cursor, "questStreak", 0);
             int steps = getIntFromCursor(cursor, "steps", 0);
             int stepsToday = getIntFromCursor(cursor, "stepsToday", 0);
-            int goalSteps = getIntFromCursor(cursor, "goalSteps", 0);
-            int totalQuests = getIntFromCursor(cursor, "totalQuests", 0);
-            int totalTasks = getIntFromCursor(cursor, "totalTasks", 0);
-            int highestStreak = getIntFromCursor(cursor, "highestStreak", 0);
+            int goalSteps = getIntFromCursor(cursor, "stepGoal", 0);
+            int totalQuests = getIntFromCursor(cursor, "total_quests", 0);
+            int totalTasks = getIntFromCursor(cursor, "total_tasks", 0);
+            int highestStreak = getIntFromCursor(cursor, "highest_streak", 0);
             long lastLoginDate = getLongFromCursor(cursor, "lastLoginDate", 0);
             boolean isQuestActive = getIntFromCursor(cursor, "isQuestActive", 0) == 1;
 

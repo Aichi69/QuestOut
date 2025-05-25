@@ -378,7 +378,7 @@
                                 android:layout_height="40dp"
                                 android:backgroundTint="#8F6ED5"
                                 android:fontFamily="@font/montserrat_bold"
-                                android:text="START"
+                                android:text="ATTEMPT"
                                 android:textColor="#FFF"
                                 android:textStyle="bold" />
                             <Button
@@ -440,7 +440,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="32dp"
                         android:text="SET GOAL"
-                        android:textSize="10sp"
+                        android:textSize="8sp"
                         android:backgroundTint="#FF5E9C"
                         android:textColor="#FFF"
                         android:textStyle="bold"

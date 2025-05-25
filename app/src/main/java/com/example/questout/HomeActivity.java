@@ -218,25 +218,11 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void updateStepsProgress() {
-        // Update text views
-        stepsProgress.setText(stepsToday + " STEPS");
-        if (goalSteps > 0) {
-            stepsGoal.setText("Goal: " + goalSteps + " STEPS");
-        } else {
-            stepsGoal.setText("Set a goal to start tracking steps");
+        if (stepsProgress != null && stepsGoal != null && stepsProgressBar != null) {
+            stepsProgress.setText(String.valueOf(stepsToday));
+            stepsProgressBar.setMax(goalSteps);
+            stepsProgressBar.setProgress(stepsToday);
         }
-
-        // Calculate progress percentage
-        int progress = goalSteps > 0 ? (int) ((float) stepsToday / goalSteps * 100) : 0;
-        // Ensure progress doesn't exceed 100%
-        progress = Math.min(progress, 100);
-        // Update progress bar
-        stepsProgressBar.setProgress(progress);
-        
-        // Enable/disable claim button based on goal achievement
-        boolean canClaim = stepsToday >= goalSteps && goalSteps >= 2500;
-        claimStepsBtn.setEnabled(canClaim);
-        claimStepsBtn.setAlpha(canClaim ? 1.0f : 0.5f);
     }
 
     // Method to update steps (call this when steps change)
@@ -400,16 +386,18 @@ public class HomeActivity extends AppCompatActivity {
 
     // Add new method to update quest streak display
     private void updateQuestStreakDisplay() {
+        int questStreak = prefs.getInt("questStreak", 0);
         questStreakText.setText("Daily Streak: " + questStreak);
     }
 
     // Add method to increment quest streak
     public void incrementQuestStreak() {
+        int questStreak = prefs.getInt("questStreak", 0);
         questStreak++;
         prefs.edit().putInt("questStreak", questStreak).apply();
         updateQuestStreakDisplay();
         
-        // Award XP for maintaining streak
+        // Award XP for completing quest
         int streakXp = 50; // Base XP for completing quest
         if (questStreak > 1) {
             streakXp += (questStreak - 1) * 10; // Bonus XP for streak
@@ -444,6 +432,28 @@ public class HomeActivity extends AppCompatActivity {
         int userId = prefs.getInt("userId", -1);
         if (userId != -1) {
             loadUserData(userId);
+            
+            // Check if daily login has been claimed today
+            long lastLoginDate = prefs.getLong("lastLoginDate", 0);
+            Calendar today = Calendar.getInstance();
+            Calendar lastLogin = Calendar.getInstance();
+            lastLogin.setTimeInMillis(lastLoginDate);
+            
+            boolean isSameDay = today.get(Calendar.YEAR) == lastLogin.get(Calendar.YEAR) &&
+                              today.get(Calendar.DAY_OF_YEAR) == lastLogin.get(Calendar.DAY_OF_YEAR);
+            
+            if (isSameDay) {
+                claimLoginBtn.setEnabled(false);
+                claimLoginBtn.setText("CLAIMED");
+                claimLoginBtn.setAlpha(0.5f);
+            } else {
+                claimLoginBtn.setEnabled(true);
+                claimLoginBtn.setText("CLAIM");
+                claimLoginBtn.setAlpha(1.0f);
+            }
+            
+            // Update steps progress
+            updateStepsProgress();
         }
     }
 
@@ -454,21 +464,31 @@ public class HomeActivity extends AppCompatActivity {
             int levelIndex = userCursor.getColumnIndex("level");
             int stepsIndex = userCursor.getColumnIndex("steps");
             int streakIndex = userCursor.getColumnIndex("streak");
+            int questStreakIndex = userCursor.getColumnIndex("questStreak");
             int xpIndex = userCursor.getColumnIndex("total_xp");
-            int goalIndex = userCursor.getColumnIndex("step_goal");
+            int goalIndex = userCursor.getColumnIndex("stepGoal");
 
             String username = nameIndex >= 0 ? userCursor.getString(nameIndex) : "Player";
             level = levelIndex >= 0 ? userCursor.getInt(levelIndex) : 0;
             int steps = stepsIndex >= 0 ? userCursor.getInt(stepsIndex) : 0;
             streak = streakIndex >= 0 ? userCursor.getInt(streakIndex) : 0;
+            questStreak = questStreakIndex >= 0 ? userCursor.getInt(questStreakIndex) : 0;
             xp = xpIndex >= 0 ? userCursor.getInt(xpIndex) : 0;
-            goalSteps = goalIndex >= 0 ? userCursor.getInt(goalIndex) : 0;
+            goalSteps = goalIndex >= 0 ? userCursor.getInt(goalIndex) : 5000; // Default to 5000 if not set
             
-            Log.d(TAG, String.format("Loaded user data - Name: %s, Level: %d, Steps: %d, Streak: %d, XP: %d, Goal: %d",
-                username, level, steps, streak, xp, goalSteps));
+            Log.d(TAG, String.format("Loaded user data - Name: %s, Level: %d, Steps: %d, Streak: %d, Quest Streak: %d, XP: %d, Goal: %d",
+                username, level, steps, streak, questStreak, xp, goalSteps));
 
             // Update UI with user data
             updateUIWithUserData(username, level, steps, streak, xp);
+            
+            // Update step goal display
+            if (stepsGoal != null) {
+                stepsGoal.setText(goalSteps + " steps");
+            }
+            
+            // Update steps progress
+            updateStepsProgress();
         }
         if (userCursor != null) {
             userCursor.close();
@@ -493,7 +513,7 @@ public class HomeActivity extends AppCompatActivity {
 
         // Update quest streak text
         if (questStreakText != null) {
-            questStreakText.setText(String.valueOf(streak));
+            questStreakText.setText("Daily Streak: " + questStreak);
         }
 
         // Save to SharedPreferences for consistency
@@ -501,6 +521,7 @@ public class HomeActivity extends AppCompatActivity {
             .putInt("level", level)
             .putInt("xp", xp)
             .putInt("streak", streak)
+            .putInt("questStreak", questStreak)
             .apply();
     }
 

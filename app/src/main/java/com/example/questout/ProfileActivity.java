@@ -104,6 +104,7 @@ public class ProfileActivity extends AppCompatActivity {
             dbHelper.updateUserStreak(userId, streak); // Save daily login streak
             dbHelper.updateUserSteps(userId, steps);
             dbHelper.updateUserStats(userId, level, xp, steps);
+            dbHelper.updateStepGoal(userId, goalSteps); // Save step goal
             // Save last login date in SharedPreferences only
             prefs.edit().putLong("lastLoginDate", lastLoginDate).apply();
 
