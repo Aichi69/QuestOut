@@ -196,13 +196,32 @@ public class HomeActivity extends AppCompatActivity {
         public void onSensorChanged(SensorEvent event) {
             Log.d("StepDebug", "Sensor changed: " + event.values[0]);
             int totalStepsSinceBoot = (int) event.values[0];
+            int userId = prefs.getInt("userId", -1);
+            
             if (stepOffset == -1) {
-                stepOffset = totalStepsSinceBoot;
+                // Try to load step offset from SharedPreferences first
+                stepOffset = prefs.getInt("stepOffset", -1);
+                
+                // If still not found, use current boot count as offset
+                if (stepOffset == -1) {
+                    stepOffset = totalStepsSinceBoot;
+                }
+                
+                // Save to SharedPreferences and database for persistence
                 prefs.edit().putInt("stepOffset", stepOffset).apply();
+                if (userId != -1) {
+                    dbHelper.saveStepOffset(userId, stepOffset);
+                }
             }
+            
+            // Calculate steps today based on offset
             stepsToday = totalStepsSinceBoot - stepOffset;
             if (stepsToday < 0) stepsToday = 0;
+            
+            // Save to SharedPreferences
             prefs.edit().putInt("stepsToday", stepsToday).apply();
+            
+            // Update UI and database
             updateSteps(stepsToday);
         }
         @Override
@@ -229,6 +248,15 @@ public class HomeActivity extends AppCompatActivity {
     public void updateSteps(int newSteps) {
         stepsToday = newSteps;
         updateStepsProgress();
+        
+        // Save steps to database for leaderboard
+        int userId = prefs.getInt("userId", -1);
+        if (userId != -1) {
+            // Update both steps and stepsToday in the database
+            dbHelper.updateUserSteps(userId, stepsToday);
+            dbHelper.updateStepsToday(userId, stepsToday);
+            Log.d(TAG, "Updated steps and stepsToday in database: " + stepsToday);
+        }
     }
 
     // Method to update goal (call this when goal changes)
@@ -463,21 +491,75 @@ public class HomeActivity extends AppCompatActivity {
             int nameIndex = userCursor.getColumnIndex("name");
             int levelIndex = userCursor.getColumnIndex("level");
             int stepsIndex = userCursor.getColumnIndex("steps");
+            int stepsToday_Index = userCursor.getColumnIndex("stepsToday");
             int streakIndex = userCursor.getColumnIndex("streak");
             int questStreakIndex = userCursor.getColumnIndex("questStreak");
             int xpIndex = userCursor.getColumnIndex("total_xp");
             int goalIndex = userCursor.getColumnIndex("stepGoal");
+            int stepOffsetIndex = userCursor.getColumnIndex("stepOffset");
 
             String username = nameIndex >= 0 ? userCursor.getString(nameIndex) : "Player";
             level = levelIndex >= 0 ? userCursor.getInt(levelIndex) : 0;
             int steps = stepsIndex >= 0 ? userCursor.getInt(stepsIndex) : 0;
+            int dbStepsToday = stepsToday_Index >= 0 ? userCursor.getInt(stepsToday_Index) : 0;
             streak = streakIndex >= 0 ? userCursor.getInt(streakIndex) : 0;
             questStreak = questStreakIndex >= 0 ? userCursor.getInt(questStreakIndex) : 0;
             xp = xpIndex >= 0 ? userCursor.getInt(xpIndex) : 0;
             goalSteps = goalIndex >= 0 ? userCursor.getInt(goalIndex) : 5000; // Default to 5000 if not set
             
-            Log.d(TAG, String.format("Loaded user data - Name: %s, Level: %d, Steps: %d, Streak: %d, Quest Streak: %d, XP: %d, Goal: %d",
-                username, level, steps, streak, questStreak, xp, goalSteps));
+            // Load step offset from database if available
+            try {
+                if (stepOffsetIndex >= 0) {
+                    int dbStepOffset = userCursor.getInt(stepOffsetIndex);
+                    if (dbStepOffset > 0) {
+                        // Only update if we have a valid offset from the database
+                        stepOffset = dbStepOffset;
+                        prefs.edit().putInt("stepOffset", stepOffset).apply();
+                        Log.d(TAG, "Loaded step offset from database: " + stepOffset);
+                    } else {
+                        // If no valid offset in database, try to get from SharedPreferences
+                        stepOffset = prefs.getInt("stepOffset", -1);
+                        Log.d(TAG, "Using step offset from SharedPreferences: " + stepOffset);
+                    }
+                }
+            } catch (Exception e) {
+                // Handle case where stepOffset column might not exist yet
+                Log.e(TAG, "Error accessing stepOffset column: " + e.getMessage());
+                // Try to get from SharedPreferences as fallback
+                stepOffset = prefs.getInt("stepOffset", -1);
+                Log.d(TAG, "Fallback to SharedPreferences for stepOffset: " + stepOffset);
+            }
+            
+            // If we have a valid stepsToday value from the database, use it
+            // Prioritize stepsToday over steps for better accuracy
+            if (dbStepsToday > 0) {
+                stepsToday = dbStepsToday;
+                steps = dbStepsToday; // Make sure steps and stepsToday are in sync
+                prefs.edit()
+                    .putInt("stepsToday", stepsToday)
+                    .putInt("steps", steps)
+                    .apply();
+                Log.d(TAG, "Loaded stepsToday from database: " + stepsToday);
+            } else if (steps > 0) {
+                // If stepsToday is not available but steps is, use steps
+                stepsToday = steps;
+                prefs.edit()
+                    .putInt("stepsToday", stepsToday)
+                    .apply();
+                Log.d(TAG, "Using steps value for stepsToday: " + steps);
+            }
+            
+            // Make sure the steps value is properly saved to the database
+            if (steps > 0 || stepsToday > 0) {
+                // Use the higher value between steps and stepsToday
+                int finalSteps = Math.max(steps, stepsToday);
+                dbHelper.updateUserSteps(userId, finalSteps);
+                dbHelper.updateStepsToday(userId, finalSteps);
+                Log.d(TAG, "Updated database with steps: " + finalSteps);
+            }
+            
+            Log.d(TAG, String.format("Loaded user data - Name: %s, Level: %d, Steps: %d, StepsToday: %d, Streak: %d, Quest Streak: %d, XP: %d, Goal: %d",
+                username, level, steps, stepsToday, streak, questStreak, xp, goalSteps));
 
             // Update UI with user data
             updateUIWithUserData(username, level, steps, streak, xp);
@@ -504,9 +586,13 @@ public class HomeActivity extends AppCompatActivity {
         // Update profile name
         profileName.setText("Hello " + username + "!");
 
-        // Update steps
-        stepsToday = steps;
-        updateSteps(stepsToday);
+        // Update steps - use the value from database if available
+        if (steps > 0) {
+            stepsToday = steps;
+            // Don't call updateSteps here as it would overwrite the database value
+            // Just update the UI
+            updateStepsProgress();
+        }
 
         // Update streak display
         updateStreakDisplay(streak, dayIcons);
@@ -522,7 +608,11 @@ public class HomeActivity extends AppCompatActivity {
             .putInt("xp", xp)
             .putInt("streak", streak)
             .putInt("questStreak", questStreak)
+            .putInt("steps", steps)         // Save steps to SharedPreferences
+            .putInt("stepsToday", steps)    // Save stepsToday to SharedPreferences
             .apply();
+            
+        Log.d(TAG, "Saved user data to SharedPreferences - Steps: " + steps + ", StepsToday: " + steps);
     }
 
     // Example methods to show/hide the ongoing quest UI

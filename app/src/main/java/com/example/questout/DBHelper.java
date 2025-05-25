@@ -9,7 +9,7 @@ import android.util.Log;
 
 public class DBHelper extends SQLiteOpenHelper {
     private static final String DB_NAME = "questout.db";
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 5; // Increment version to trigger onUpgrade
     private static final String TAG = "DBHelper";
 
     public DBHelper(Context context) {
@@ -30,6 +30,7 @@ public class DBHelper extends SQLiteOpenHelper {
             "steps INTEGER DEFAULT 0," +
             "stepsToday INTEGER DEFAULT 0," +
             "stepGoal INTEGER DEFAULT 5000," +
+            "stepOffset INTEGER DEFAULT -1," +
             "total_xp INTEGER DEFAULT 0," +
             "total_quests INTEGER DEFAULT 0," +
             "total_tasks INTEGER DEFAULT 0," +
@@ -43,6 +44,8 @@ public class DBHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         Log.d(TAG, "Upgrading database from version " + oldVersion + " to " + newVersion);
+        
+        // Add columns for version upgrades without dropping the table
         if (oldVersion < 4) {
             // Add birthday column if upgrading from version < 4
             try {
@@ -52,8 +55,18 @@ public class DBHelper extends SQLiteOpenHelper {
                 Log.e(TAG, "Error adding birthday column: " + e.getMessage());
             }
         }
-        db.execSQL("DROP TABLE IF EXISTS users");
-        onCreate(db);
+        
+        // Add stepOffset column for step tracking persistence
+        try {
+            db.execSQL("ALTER TABLE users ADD COLUMN stepOffset INTEGER DEFAULT -1");
+            Log.d(TAG, "Added stepOffset column to users table");
+        } catch (Exception e) {
+            Log.e(TAG, "Error adding stepOffset column: " + e.getMessage());
+            // Column might already exist, which is fine
+        }
+        
+        // We no longer drop the table to preserve user data
+        // Instead, we add columns as needed
     }
 
     // Insert new user
@@ -174,6 +187,44 @@ public class DBHelper extends SQLiteOpenHelper {
             Log.d(TAG, "Verified steps update - Current value: " + updatedSteps);
             cursor.close();
         }
+    }
+    
+    // Update user steps today (for leaderboard)
+    public void updateStepsToday(int userId, int stepsToday) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("stepsToday", stepsToday);
+        int result = db.update("users", values, "id=?", new String[]{String.valueOf(userId)});
+        Log.d(TAG, "Updated stepsToday for user " + userId + " to " + stepsToday + ". Result: " + result);
+        
+        // Verify the update
+        Cursor cursor = db.rawQuery("SELECT stepsToday FROM users WHERE id=?", new String[]{String.valueOf(userId)});
+        if (cursor != null && cursor.moveToFirst()) {
+            int updatedSteps = cursor.getInt(0);
+            Log.d(TAG, "Verified stepsToday update - Current value: " + updatedSteps);
+            cursor.close();
+        }
+    }
+    
+    // Save step offset for persistent step tracking across sessions
+    public void saveStepOffset(int userId, int stepOffset) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("stepOffset", stepOffset);
+        int result = db.update("users", values, "id=?", new String[]{String.valueOf(userId)});
+        Log.d(TAG, "Saved step offset for user " + userId + " to " + stepOffset + ". Result: " + result);
+    }
+    
+    // Get step offset for persistent step tracking across sessions
+    public int getStepOffset(int userId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT stepOffset FROM users WHERE id=?", new String[]{String.valueOf(userId)});
+        int stepOffset = -1;
+        if (cursor != null && cursor.moveToFirst()) {
+            stepOffset = cursor.getInt(0);
+            cursor.close();
+        }
+        return stepOffset;
     }
 
     // Update user streak
@@ -345,6 +396,30 @@ public class DBHelper extends SQLiteOpenHelper {
         }
         Log.d("DBHelper", "Database is " + (isEmpty ? "empty" : "not empty"));
         return isEmpty;
+    }
+    
+    // Get top 10 users by quest streak with rank
+    public Cursor getTop10ByQuestStreak() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery(
+            "SELECT id, name, questStreak, " +
+            "RANK() OVER (ORDER BY questStreak DESC) as rank " +
+            "FROM users " +
+            "ORDER BY questStreak DESC LIMIT 10",
+            null
+        );
+    }
+
+    // Get top 10 users by steps today with rank
+    public Cursor getTop10ByStepsToday() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery(
+            "SELECT id, name, stepsToday, " +
+            "RANK() OVER (ORDER BY stepsToday DESC) as rank " +
+            "FROM users " +
+            "ORDER BY stepsToday DESC LIMIT 10",
+            null
+        );
     }
 
     // Update step goal
